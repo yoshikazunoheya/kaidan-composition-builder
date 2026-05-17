@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>怪奇書籍館｜画像リネーマー</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0f;
+    --surface: #161618;
+    --surface2: #1e1e21;
+    --border: #2a2a2e;
+    --accent: #c8a96e;
+    --accent2: #7c6a4e;
+    --text: #e8e4dc;
+    --text-dim: #7a776f;
+    --text-mid: #a8a49c;
+    --selected: #2a2318;
+    --selected-border: #c8a96e;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Serif JP', serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  .header h1 { font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: 0.05em; }
+  .header span { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .title-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'Noto Serif JP', serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .title-input:focus { border-color: var(--accent2); }
+  .title-input::placeholder { color: var(--text-dim); }
+
+  .title-preview {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  /* バッチ表示 */
+  .batch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .batch-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .btn-add-batch {
+    background: var(--surface2);
+    border: 1px solid var(--accent2);
+    color: var(--accent);
+    padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .btn-add-batch:hover { background: var(--selected); }
+  .btn-add-batch:disabled { opacity: 0.3; cursor: default; }
+
+  /* グリッド */
+  .slots-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .slot {
+    aspect-ratio: 1;
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .slot:hover { border-color: var(--accent2); }
+  .slot.filled { border-style: solid; border-color: var(--accent2); cursor: default; }
+  .slot.dragover { border-color: var(--accent); background: var(--selected); }
+
+  .slot-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .slot img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.7;
+  }
+
+  .slot-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--accent);
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 0 4px;
+    word-break: break-all;
+    background: rgba(14,14,15,0.7);
+    border-radius: 2px;
+    padding: 2px 4px;
+  }
+
+  .slot-empty-icon {
+    font-size: 20px;
+    margin-bottom: 4px;
+    color: var(--border);
+  }
+
+  .slot-remove {
+    position: absolute;
+    top: 4px; right: 4px;
+    background: rgba(14,14,15,0.8);
+    border: none;
+    color: var(--text-dim);
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 2px 4px;
+    z-index: 2;
+    display: none;
+  }
+  .slot.filled:hover .slot-remove { display: block; }
+  .slot-remove:hover { color: #c97a7a; }
+
+  /* アクションボタン */
+  .action-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent2);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 10px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .btn-primary:hover { background: #3a2f1e; }
+  .btn-primary:disabled { opacity: 0.3; cursor: default; }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 10px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--accent2); color: var(--text-mid); }
+
+  .status-msg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 12px;
+    min-height: 16px;
+  }
+  .status-msg.ok { color: var(--accent); }
+  .status-msg.err { color: #c97a7a; }
+
+  /* リスト */
+  .file-list {
+    margin-top: 16px;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .file-item .num {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    min-width: 36px;
+  }
+
+  .file-item .original {
+    color: var(--text-dim);
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .file-item .arrow { color: var(--border); }
+
+  .file-item .renamed {
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>怪奇書籍館｜画像リネーマー</h1>
+  <span>v0.1 — image renamer</span>
+</div>
+
+<!-- タイトル入力 -->
+<div class="panel">
+  <div class="panel-title">STEP 01 — お話のタイトルを入力</div>
+  <div class="title-row">
+    <input class="title-input" id="titleInput" type="text" placeholder="例：つぐないの家" oninput="updatePreview()">
+    <span class="title-preview" id="titlePreview">タイトル_01.jpg</span>
+  </div>
+</div>
+
+<!-- スロット -->
+<div class="panel">
+  <div class="panel-title">STEP 02 — 画像を1枚ずつドロップ</div>
+
+  <div id="batchContainer">
+    <!-- JS生成 -->
+  </div>
+
+  <div class="action-row">
+    <button class="btn-primary" id="downloadBtn" onclick="downloadZip()" disabled>📦 ZIPでダウンロード</button>
+    <button class="btn-secondary" onclick="resetAll()">全リセット</button>
+  </div>
+  <div class="status-msg" id="statusMsg"></div>
+
+  <div class="file-list" id="fileList"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+  var files = {}; // { globalIndex: File }
+  var totalSlots = 10;
+  var batchCount = 1;
+
+  function updatePreview() {
+    var title = document.getElementById('titleInput').value.trim();
+    document.getElementById('titlePreview').textContent = (title || 'タイトル') + '_01.jpg';
+  }
+
+  function getTitle() {
+    return document.getElementById('titleInput').value.trim() || 'image';
+  }
+
+  function padNum(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function getRenamedName(globalIndex, originalFile) {
+    var ext = originalFile.name.split('.').pop();
+    return getTitle() + '_' + padNum(globalIndex) + '.' + ext;
+  }
+
+  function initBatch() {
+    var container = document.getElementById('batchContainer');
+    container.innerHTML = '';
+
+    for (var b = 0; b < batchCount; b++) {
+      var batchDiv = document.createElement('div');
+      batchDiv.style.marginBottom = '20px';
+
+      var batchHeader = document.createElement('div');
+      batchHeader.className = 'batch-header';
+
+      var label = document.createElement('span');
+      label.className = 'batch-label';
+      var start = b * 10 + 1;
+      var end = (b + 1) * 10;
+      label.textContent = 'BATCH ' + (b + 1) + '  (#' + padNum(start) + ' 〜 #' + padNum(end) + ')';
+      batchHeader.appendChild(label);
+
+      if (b === batchCount - 1) {
+        var addBtn = document.createElement('button');
+        addBtn.className = 'btn-add-batch';
+        addBtn.id = 'addBatchBtn';
+        addBtn.textContent = '+ 次の10カットを追加';
+        addBtn.onclick = addBatch;
+        addBtn.disabled = !isBatchFull(b);
+        batchHeader.appendChild(addBtn);
+      }
+
+      batchDiv.appendChild(batchHeader);
+
+      var grid = document.createElement('div');
+      grid.className = 'slots-grid';
+
+      for (var i = 0; i < 10; i++) {
+        var globalIndex = b * 10 + i + 1;
+        grid.appendChild(createSlot(globalIndex));
+      }
+
+      batchDiv.appendChild(grid);
+      container.appendChild(batchDiv);
+    }
+
+    updateFileList();
+    updateDownloadBtn();
+  }
+
+  function createSlot(globalIndex) {
+    var slot = document.createElement('div');
+    slot.className = 'slot' + (files[globalIndex] ? ' filled' : '');
+    slot.id = 'slot-' + globalIndex;
+
+    var num = document.createElement('div');
+    num.className = 'slot-num';
+    num.textContent = '#' + padNum(globalIndex);
+    slot.appendChild(num);
+
+    if (files[globalIndex]) {
+      var img = document.createElement('img');
+      img.src = URL.createObjectURL(files[globalIndex]);
+      slot.appendChild(img);
+
+      var name = document.createElement('div');
+      name.className = 'slot-name';
+      name.textContent = getRenamedName(globalIndex, files[globalIndex]);
+      slot.appendChild(name);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.className = 'slot-remove';
+      removeBtn.textContent = '✕';
+      removeBtn.onclick = (function(idx) { return function(e) { e.stopPropagation(); removeFile(idx); }; })(globalIndex);
+      slot.appendChild(removeBtn);
+    } else {
+      var icon = document.createElement('div');
+      icon.className = 'slot-empty-icon';
+      icon.textContent = '＋';
+      slot.appendChild(icon);
+
+      // クリックで追加
+      slot.onclick = (function(idx) { return function() { triggerFileInput(idx); }; })(globalIndex);
+    }
+
+    // ドラッグ&ドロップ
+    slot.addEventListener('dragover', function(e) { e.preventDefault(); slot.classList.add('dragover'); });
+    slot.addEventListener('dragleave', function() { slot.classList.remove('dragover'); });
+    slot.addEventListener('drop', (function(idx) {
+      return function(e) {
+        e.preventDefault();
+        slot.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+          setFile(idx, e.dataTransfer.files[0]);
+        }
+      };
+    })(globalIndex));
+
+    return slot;
+  }
+
+  function triggerFileInput(globalIndex) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function(e) {
+      if (e.target.files.length > 0) setFile(globalIndex, e.target.files[0]);
+    };
+    input.click();
+  }
+
+  function setFile(globalIndex, file) {
+    if (!file.type.startsWith('image/')) { setStatus('画像ファイルを選択してください', 'err'); return; }
+    files[globalIndex] = file;
+    setStatus('#' + padNum(globalIndex) + ' に ' + file.name + ' をセットしました', 'ok');
+    initBatch();
+  }
+
+  function removeFile(globalIndex) {
+    delete files[globalIndex];
+    initBatch();
+    setStatus('#' + padNum(globalIndex) + ' を削除しました');
+  }
+
+  function isBatchFull(batchIdx) {
+    for (var i = 0; i < 10; i++) {
+      var globalIndex = batchIdx * 10 + i + 1;
+      if (!files[globalIndex]) return false;
+    }
+    return true;
+  }
+
+  function addBatch() {
+    batchCount++;
+    totalSlots = batchCount * 10;
+    initBatch();
+    setStatus('バッチ' + batchCount + 'を追加しました', 'ok');
+  }
+
+  function updateFileList() {
+    var list = document.getElementById('fileList');
+    var keys = Object.keys(files).map(Number).sort(function(a,b){return a-b;});
+    if (keys.length === 0) { list.innerHTML = ''; return; }
+
+    list.innerHTML = keys.map(function(idx) {
+      var f = files[idx];
+      return '<div class="file-item">' +
+        '<span class="num">#' + padNum(idx) + '</span>' +
+        '<span class="original">' + f.name + '</span>' +
+        '<span class="arrow">→</span>' +
+        '<span class="renamed">' + getRenamedName(idx, f) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function updateDownloadBtn() {
+    var hasFiles = Object.keys(files).length > 0;
+    document.getElementById('downloadBtn').disabled = !hasFiles;
+  }
+
+  function resetAll() {
+    if (!confirm('全てリセットしますか？')) return;
+    files = {};
+    batchCount = 1;
+    totalSlots = 10;
+    initBatch();
+    setStatus('リセットしました');
+  }
+
+  function downloadZip() {
+    var title = getTitle();
+    var keys = Object.keys(files).map(Number).sort(function(a,b){return a-b;});
+    if (keys.length === 0) { setStatus('画像がありません', 'err'); return; }
+
+    setStatus('ZIP作成中...', 'ok');
+
+    var zip = new JSZip();
+    var folder = zip.folder(title);
+    var promises = keys.map(function(idx) {
+      return new Promise(function(resolve) {
+        var f = files[idx];
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var base64 = e.target.result.split(',')[1];
+          var newName = getRenamedName(idx, f);
+          folder.file(newName, base64, { base64: true });
+          resolve();
+        };
+        reader.readAsDataURL(f);
+      });
+    });
+
+    Promise.all(promises).then(function() {
+      zip.generateAsync({ type: 'blob' }).then(function(content) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = title + '_images.zip';
+        a.click();
+        setStatus(keys.length + '枚をZIPでダウンロードしました', 'ok');
+      });
+    });
+  }
+
+  function setStatus(msg, type) {
+    var el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className = 'status-msg' + (type ? ' ' + type : '');
+  }
+
+  // 初期化
+  updatePreview();
+  initBatch();
+</script>
+</body>
+</html>
