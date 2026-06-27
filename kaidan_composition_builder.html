@@ -146,6 +146,7 @@ function saveApiKey(){
   if(!key){st.textContent='キーを入力してください';st.className='api-status';return}
   localStorage.setItem('openaiApiKey',key);
   st.textContent='✓ 保存しました';st.className='api-status ok';
+  if(scenes.length)renderLeft();
 }
 
 document.getElementById('mdFile').addEventListener('change',function(e){

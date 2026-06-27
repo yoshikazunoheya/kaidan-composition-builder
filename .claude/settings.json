@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:8080/kaidan_composition_builder.html)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(npx --yes playwright@latest install chromium)",
+      "Bash(node -e ' *)",
+      "Bash(npm init *)",
+      "Bash(npm install *)"
+    ]
+  }
+}
