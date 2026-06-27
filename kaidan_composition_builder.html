@@ -35,7 +35,7 @@
   .header {
     border-bottom: 1px solid var(--border);
     padding-bottom: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     display: flex;
     align-items: baseline;
     gap: 16px;
@@ -53,6 +53,75 @@
     font-size: 11px;
     color: var(--text-dim);
   }
+
+  /* API設定パネル */
+  .api-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .api-panel-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  .api-input {
+    flex: 1;
+    min-width: 260px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-input:focus { border-color: var(--accent2); }
+  .api-input::placeholder { color: var(--text-dim); }
+
+  .api-save-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+    padding: 8px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .api-save-btn:hover { border-color: var(--accent2); color: var(--accent); }
+
+  .api-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .api-status.ok { color: var(--accent); }
+
+  .api-notice {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    width: 100%;
+    padding-top: 4px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+  .api-notice a { color: var(--accent2); text-decoration: none; }
 
   .main-grid {
     display: grid;
@@ -89,6 +158,7 @@
   }
   .upload-zone:hover { border-color: var(--accent2); }
   .upload-zone p { font-size: 13px; color: var(--text-dim); }
+  .upload-zone small { font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; display: block; margin-top: 4px; }
 
   .scene-nav {
     display: flex;
@@ -133,6 +203,9 @@
     font-size: 10px;
     color: var(--accent);
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .scene-card .scene-text {
@@ -140,6 +213,39 @@
     color: var(--text-mid);
     line-height: 1.6;
   }
+
+  .analyzing-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent2);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .analyze-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .btn-analyze {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    flex: 1;
+  }
+  .btn-analyze:hover { border-color: var(--accent2); color: var(--text-mid); }
+  .btn-analyze:disabled { opacity: 0.3; cursor: default; }
 
   .situation-input {
     width: 100%;
@@ -312,17 +418,36 @@
 <div class="header">
   <a href="index.html" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);text-decoration:none;margin-right:8px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-dim)'">← ホーム</a>
   <h1>怪奇書籍館｜構図ビルダー</h1>
-  <span>v0.1 — composition builder</span>
+  <span>v0.2 — composition builder + API解析</span>
+</div>
+
+<!-- API設定パネル -->
+<div class="api-panel">
+  <span class="api-panel-label">ANTHROPIC API KEY</span>
+  <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off">
+  <button class="api-save-btn" onclick="saveApiKey()">保存</button>
+  <span class="api-status" id="apiStatus">—</span>
+  <div class="api-notice">
+    ※ キーはこのブラウザのlocalStorageにのみ保存されます。ネットワーク送信はしません。<br>
+    ※ CORSエラーが出る場合はファイルを直接開かず、ターミナルで <code>python3 -m http.server 8000</code> を実行し <code>http://localhost:8000</code> から開いてください。
+  </div>
 </div>
 
 <div class="main-grid">
 
   <div class="panel">
-    <div class="panel-title">STEP 01 — シーン一覧を読み込む</div>
+    <div class="panel-title">STEP 01 — 原稿を読み込む</div>
 
     <div class="upload-zone" onclick="document.getElementById('mdFile').click()">
-      <p>📄 シーン一覧 .md をクリックして選択</p>
-      <input type="file" id="mdFile" accept=".md,.txt" style="display:none" onchange="loadMdFile(event)">
+      <p>📄 原稿ファイル（.md / .txt）をクリックして選択</p>
+      <small>--- で区切った原稿、またはシーン一覧MDに対応</small>
+      <input type="file" id="mdFile" accept=".md,.txt" style="display:none" onchange="loadFile(event)">
+    </div>
+
+    <!-- 全解析ボタン -->
+    <div class="analyze-row">
+      <button class="btn-analyze" id="btnAnalyzeAll" onclick="analyzeAll()" disabled>⚡ 全シーン一括解析</button>
+      <button class="btn-analyze" id="btnAnalyzeCurrent" onclick="analyzeCurrentScene()" disabled>↻ このシーンを再解析</button>
     </div>
 
     <div class="scene-nav">
@@ -332,7 +457,7 @@
     </div>
 
     <div class="scene-card" id="sceneCard">
-      <div class="empty-state">mdファイルを読み込むとシーンが表示されます</div>
+      <div class="empty-state">ファイルを読み込むとシーンが表示されます</div>
     </div>
 
     <div class="panel-title" style="margin-top:4px;">STEP 02 — 状況メモ（雑でOK）</div>
@@ -409,80 +534,258 @@
   var currentIdx = 0;
   var batch = [];
   var selections = { angle: null, size: null, dir: null };
+  var isAnalyzingAll = false;
 
-  function loadMdFile(event) {
+  // ─── APIキー管理 ────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = localStorage.getItem('claudeApiKey');
+    if (saved) {
+      document.getElementById('apiKeyInput').value = saved;
+      document.getElementById('apiStatus').textContent = '✓ 保存済み';
+      document.getElementById('apiStatus').className = 'api-status ok';
+    }
+    renderProgress();
+  });
+
+  function saveApiKey() {
+    var key = document.getElementById('apiKeyInput').value.trim();
+    if (!key) {
+      document.getElementById('apiStatus').textContent = 'キーを入力してください';
+      document.getElementById('apiStatus').className = 'api-status';
+      return;
+    }
+    localStorage.setItem('claudeApiKey', key);
+    document.getElementById('apiStatus').textContent = '✓ 保存しました';
+    document.getElementById('apiStatus').className = 'api-status ok';
+  }
+
+  function getApiKey() {
+    return localStorage.getItem('claudeApiKey') || '';
+  }
+
+  // ─── ファイル読み込み・パース ────────────────────────────────
+  function loadFile(event) {
     var file = event.target.files[0];
     if (!file) return;
     var reader = new FileReader();
-    reader.onload = function(e) { parseMd(e.target.result); };
+    reader.onload = function(e) {
+      var text = e.target.result;
+      // 自動判定：テーブル形式 or 生原稿
+      if (isTableFormat(text)) {
+        parseMdTable(text);
+      } else {
+        parsePlainScript(text);
+      }
+    };
     reader.readAsText(file, 'UTF-8');
   }
 
-  function parseMd(text) {
+  function isTableFormat(text) {
+    // テーブル行（|で始まる行）が複数あればテーブル形式
+    var tableLines = text.split('\n').filter(function(l){ return l.trim().startsWith('|'); });
+    return tableLines.length > 3;
+  }
+
+  // --- 生原稿パース（--- 区切り）---
+  function parsePlainScript(text) {
+    scenes = [];
+    // --- で分割（--- のみの行、または --- [タグ] 形式に対応）
+    var blocks = text.split(/\n---[^\n]*\n|^---[^\n]*\n/m);
+    blocks = blocks.map(function(b){ return b.trim(); }).filter(function(b){ return b.length > 5; });
+
+    if (blocks.length === 0) {
+      setStatus('シーンが見つかりませんでした。--- で区切られているか確認してください');
+      return;
+    }
+
+    scenes = blocks.map(function(block, idx) {
+      return {
+        num: String(idx + 1).padStart(2, '0'),
+        raw: block,
+        summary: block.replace(/\n/g, ' ').substring(0, 60) + (block.length > 60 ? '…' : ''),
+        location: null,    // null = 未解析
+        characters: null,
+        analyzing: false,
+        analyzed: false,
+        mode: 'plain'
+      };
+    });
+
+    currentIdx = 0;
+    enableAnalyzeButtons();
+    renderScene();
+    renderProgress();
+    setStatus(scenes.length + 'シーンを読み込みました（--- 区切り原稿）', true);
+
+    // 先頭3シーンを自動解析（APIキーがあれば）
+    if (getApiKey()) {
+      setTimeout(function(){
+        for (var i = 0; i < Math.min(3, scenes.length); i++) {
+          analyzeScene(i);
+        }
+      }, 300);
+    }
+  }
+
+  // --- シーン一覧MDテーブルパース（旧形式・後方互換）---
+  function parseMdTable(text) {
     scenes = [];
     var lines = text.split('\n');
-
-    // テーブル行だけ抽出
     var tableLines = [];
     for (var i = 0; i < lines.length; i++) {
       var l = lines[i].trim();
       if (l.startsWith('|')) tableLines.push(l);
     }
 
-    // ヘッダー行と区切り行（|---|）をスキップしてデータ行だけ処理
     for (var j = 0; j < tableLines.length; j++) {
       var line = tableLines[j];
-
-      // 区切り行スキップ（|---|---|のパターン）
       if (/^\|[\s\-|:]+\|$/.test(line)) continue;
-
       var cols = line.split('|').map(function(c){ return c.trim(); }).filter(function(c, idx, arr){
         return idx > 0 && idx < arr.length - 1;
       });
-
       if (cols.length < 2) continue;
-
       var num = cols[0].replace(/<br>/gi, '').trim();
-
-      // ヘッダー行スキップ（#や日本語ヘッダー）
       if (num === '#' || num === '' || /^[ぁ-んァ-ン一-龥A-Za-z＃]+$/.test(num)) continue;
-      // 数字またはゼロ埋め数字のみ通す
       if (!/^\d+$/.test(num.replace(/^#/, ''))) continue;
-
-      // # プレフィックスを除去
       num = num.replace(/^#/, '');
-
-      var rawText  = cols[1] || '';
-      var summary  = cols[2] || cols[1] || '';
-      var location = cols[3] || '';
-      var characters = cols[4] || '';
 
       scenes.push({
         num: num.padStart(2, '0'),
-        raw: rawText.replace(/<br>/gi, ' '),
-        summary: summary,
-        location: location,
-        characters: characters
+        raw: (cols[1] || '').replace(/<br>/gi, ' '),
+        summary: cols[2] || cols[1] || '',
+        location: cols[3] || '—',
+        characters: cols[4] || '—',
+        analyzing: false,
+        analyzed: true,
+        mode: 'table'
       });
     }
 
     currentIdx = 0;
+    enableAnalyzeButtons();
     renderScene();
     renderProgress();
 
     if (scenes.length > 0) {
-      setStatus(scenes.length + 'シーンを読み込みました', true);
+      setStatus(scenes.length + 'シーンを読み込みました（シーン一覧MD）', true);
     } else {
-      setStatus('シーンが見つかりませんでした。表形式(|#|原稿|概要|場所|登場人物|)を確認してください');
+      setStatus('シーンが見つかりませんでした');
     }
   }
 
+  function enableAnalyzeButtons() {
+    document.getElementById('btnAnalyzeAll').disabled = false;
+    document.getElementById('btnAnalyzeCurrent').disabled = false;
+  }
+
+  // ─── Claude API解析 ──────────────────────────────────────────
+  async function analyzeScene(idx) {
+    if (!scenes[idx]) return;
+    if (scenes[idx].analyzed || scenes[idx].analyzing) return;
+
+    var apiKey = getApiKey();
+    if (!apiKey) {
+      scenes[idx].location = 'APIキーを設定してください';
+      scenes[idx].characters = '—';
+      if (currentIdx === idx) renderScene();
+      return;
+    }
+
+    scenes[idx].analyzing = true;
+    scenes[idx].location = '解析中…';
+    scenes[idx].characters = '解析中…';
+    if (currentIdx === idx) renderScene();
+
+    try {
+      var resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 200,
+          system: '日本語の怪談原稿から情報を抽出します。JSONのみ返し、マークダウン記号や説明文は一切含めないでください。',
+          messages: [{
+            role: 'user',
+            content: '以下の文章から「場所」と「登場人物」を抽出してJSONのみ返してください。\n形式: {"location":"場所（短く）","characters":"人物A、人物B"}\n・場所は文中に実際に登場する場所を短く\n・登場人物は文中に登場・言及されているもののみ（語り手視点の現在なら語り部）\n・確信が持てない場合は「—」\n\n文章:\n' + scenes[idx].raw.substring(0, 600)
+          }]
+        })
+      });
+
+      var data = await resp.json();
+
+      if (data.error) throw new Error(data.error.message);
+
+      var resultText = data.content[0].text.trim();
+      // JSONブロックが ```json ... ``` で返ってきた場合も対応
+      var jsonMatch = resultText.match(/\{[\s\S]*?\}/);
+      if (!jsonMatch) throw new Error('JSON parse failed: ' + resultText);
+
+      var result = JSON.parse(jsonMatch[0]);
+      scenes[idx].location   = result.location   || '—';
+      scenes[idx].characters = result.characters || '—';
+      scenes[idx].analyzed   = true;
+
+    } catch(e) {
+      var errMsg = e.message || String(e);
+      if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
+        scenes[idx].location   = 'CORSエラー';
+        scenes[idx].characters = 'python3 -m http.server で開いてください';
+      } else {
+        scenes[idx].location   = '解析失敗';
+        scenes[idx].characters = errMsg.substring(0, 40);
+      }
+    }
+
+    scenes[idx].analyzing = false;
+    if (currentIdx === idx) renderScene();
+  }
+
+  async function analyzeCurrentScene() {
+    if (scenes.length === 0) return;
+    // 強制再解析
+    scenes[currentIdx].analyzed = false;
+    scenes[currentIdx].analyzing = false;
+    await analyzeScene(currentIdx);
+  }
+
+  async function analyzeAll() {
+    if (scenes.length === 0 || isAnalyzingAll) return;
+    if (!getApiKey()) { setStatus('APIキーを設定してください'); return; }
+
+    isAnalyzingAll = true;
+    document.getElementById('btnAnalyzeAll').disabled = true;
+
+    var pending = scenes.filter(function(s){ return !s.analyzed; });
+    setStatus('解析中… 0 / ' + pending.length + ' シーン');
+
+    var done = 0;
+    for (var i = 0; i < scenes.length; i++) {
+      if (!scenes[i].analyzed) {
+        await analyzeScene(i);
+        done++;
+        setStatus('解析中… ' + done + ' / ' + pending.length + ' シーン');
+        // レートリミット対策：300ms待機
+        await new Promise(function(r){ setTimeout(r, 300); });
+      }
+    }
+
+    isAnalyzingAll = false;
+    document.getElementById('btnAnalyzeAll').disabled = false;
+    setStatus('全シーン解析完了（' + scenes.length + ' シーン）', true);
+  }
+
+  // ─── シーン表示 ───────────────────────────────────────────────
   function renderScene() {
     var card = document.getElementById('sceneCard');
     var info = document.getElementById('sceneInfo');
 
     if (scenes.length === 0) {
-      card.innerHTML = '<div class="empty-state">mdファイルを読み込むとシーンが表示されます</div>';
+      card.innerHTML = '<div class="empty-state">ファイルを読み込むとシーンが表示されます</div>';
       info.textContent = '— / —';
       return;
     }
@@ -490,23 +793,41 @@
     var s = scenes[currentIdx];
     var isDone = batch.find(function(b){ return b.sceneNum === s.num; });
 
+    // 場所・人物の表示テキスト
+    var locationText = s.location === null ? '<span style="color:var(--text-dim)">（未解析）</span>' : s.location;
+    var charsText    = s.characters === null ? '<span style="color:var(--text-dim)">（未解析）</span>' : s.characters;
+    var analyzingBadge = s.analyzing ? '<span class="analyzing-badge">解析中…</span>' : '';
+
     card.innerHTML =
-      '<div class="scene-num">SCENE #' + s.num + (isDone ? ' ✓ 追加済み' : '') + '</div>' +
+      '<div class="scene-num">SCENE #' + s.num + (isDone ? ' ✓ 追加済み' : '') + analyzingBadge + '</div>' +
       '<div class="scene-text">' +
-      (s.raw ? '<strong>原文:</strong> ' + s.raw.substring(0,80) + (s.raw.length > 80 ? '…' : '') + '<br>' : '') +
-      (s.summary ? '<strong>概要:</strong> ' + s.summary + '<br>' : '') +
-      (s.location ? '<strong>場所:</strong> ' + s.location + '<br>' : '') +
-      (s.characters ? '<strong>人物:</strong> ' + s.characters : '') +
+      '<strong>原文:</strong> ' + escapeHtml(s.raw.replace(/\n/g,' ').substring(0, 80)) + (s.raw.length > 80 ? '…' : '') + '<br>' +
+      '<strong>場所:</strong> ' + locationText + '<br>' +
+      '<strong>人物:</strong> ' + charsText +
       '</div>';
 
     info.textContent = (currentIdx + 1) + ' / ' + scenes.length;
     document.getElementById('btnPrev').disabled = currentIdx === 0;
     document.getElementById('btnNext').disabled = currentIdx === scenes.length - 1;
+
+    // 未解析なら自動でAPIを叩く（APIキーがある場合のみ）
+    if (s.location === null && !s.analyzing && getApiKey()) {
+      analyzeScene(currentIdx);
+      // 次のシーンも先読みでリクエスト
+      if (currentIdx + 1 < scenes.length && scenes[currentIdx + 1].location === null) {
+        analyzeScene(currentIdx + 1);
+      }
+    }
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   function prevScene() { if (currentIdx > 0) { currentIdx--; renderScene(); } }
   function nextScene() { if (currentIdx < scenes.length - 1) { currentIdx++; renderScene(); } }
 
+  // ─── 構図選択 ─────────────────────────────────────────────────
   function selectOpt(axis, btn, value) {
     var groupId = { angle: 'angleOptions', size: 'sizeOptions', dir: 'dirOptions' }[axis];
     document.querySelectorAll('#' + groupId + ' .option-btn').forEach(function(b){ b.classList.remove('selected'); });
@@ -514,23 +835,24 @@
     selections[axis] = value;
   }
 
+  // ─── シーン追加 ───────────────────────────────────────────────
   function addScene() {
-    if (scenes.length === 0) { setStatus('先にmdファイルを読み込んでください'); return; }
+    if (scenes.length === 0) { setStatus('先にファイルを読み込んでください'); return; }
     if (!selections.angle || !selections.size || !selections.dir) { setStatus('3軸すべてを選択してください'); return; }
 
     var s = scenes[currentIdx];
     var situation = document.getElementById('situationInput').value.trim();
 
     var entry = {
-      sceneNum: s.num,
-      raw: s.raw,
-      summary: s.summary,
-      location: s.location,
-      characters: s.characters,
-      situation: situation || '（状況メモなし）',
-      angle: selections.angle,
-      size: selections.size,
-      dir: selections.dir
+      sceneNum:   s.num,
+      raw:        s.raw,
+      summary:    s.summary,
+      location:   s.location || '—',
+      characters: s.characters || '—',
+      situation:  situation || '（状況メモなし）',
+      angle:      selections.angle,
+      size:       selections.size,
+      dir:        selections.dir
     };
 
     var existIdx = batch.findIndex(function(b){ return b.sceneNum === s.num; });
@@ -559,8 +881,9 @@
     document.getElementById('situationInput').value = '';
   }
 
+  // ─── プログレス表示 ───────────────────────────────────────────
   function renderProgress() {
-    var bar = document.getElementById('progressBar');
+    var bar  = document.getElementById('progressBar');
     var list = document.getElementById('doneList');
 
     bar.innerHTML = '';
@@ -578,18 +901,18 @@
     list.innerHTML = batch.map(function(b){
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">' +
         '<span style="font-family:JetBrains Mono,monospace;color:var(--accent);min-width:48px;">#' + b.sceneNum + '</span>' +
-        '<span style="color:var(--text-mid);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + b.summary + '</span>' +
+        '<span style="color:var(--text-mid);flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + escapeHtml(b.location) + ' / ' + escapeHtml(b.characters.substring(0,20)) + '</span>' +
         '<span style="font-family:JetBrains Mono,monospace;color:var(--text-dim);font-size:10px;">✓</span>' +
         '</div>';
     }).join('');
   }
 
+  // ─── マークダウン出力 ─────────────────────────────────────────
   function renderOutput() {
     var md = batch.map(function(b){
       return '## シーン #' + b.sceneNum + '\n\n' +
-        '**概要：** ' + b.summary + '\n' +
-        '**場所：** ' + (b.location || '—') + '\n' +
-        '**人物：** ' + (b.characters || '—') + '\n\n' +
+        '**場所：** ' + b.location + '\n' +
+        '**人物：** ' + b.characters + '\n\n' +
         '**状況メモ：** ' + b.situation + '\n\n' +
         '| 軸 | 設定 |\n' +
         '|---|---|\n' +
