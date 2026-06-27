@@ -423,13 +423,12 @@
 
 <!-- API設定パネル -->
 <div class="api-panel">
-  <span class="api-panel-label">ANTHROPIC API KEY</span>
-  <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off">
+  <span class="api-panel-label">OPENAI API KEY</span>
+  <input type="password" class="api-input" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
   <button class="api-save-btn" onclick="saveApiKey()">保存</button>
   <span class="api-status" id="apiStatus">—</span>
   <div class="api-notice">
-    ※ キーはこのブラウザのlocalStorageにのみ保存されます。ネットワーク送信はしません。<br>
-    ※ CORSエラーが出る場合はファイルを直接開かず、ターミナルで <code>python3 -m http.server 8000</code> を実行し <code>http://localhost:8000</code> から開いてください。
+    ※ キーはこのブラウザのlocalStorageにのみ保存されます。サーバーへの送信はOpenAI APIへのリクエストのみです。
   </div>
 </div>
 
@@ -538,7 +537,7 @@
 
   // ─── APIキー管理 ────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', function() {
-    var saved = localStorage.getItem('claudeApiKey');
+    var saved = localStorage.getItem('openaiApiKey');
     if (saved) {
       document.getElementById('apiKeyInput').value = saved;
       document.getElementById('apiStatus').textContent = '✓ 保存済み';
@@ -554,13 +553,13 @@
       document.getElementById('apiStatus').className = 'api-status';
       return;
     }
-    localStorage.setItem('claudeApiKey', key);
+    localStorage.setItem('openaiApiKey', key);
     document.getElementById('apiStatus').textContent = '✓ 保存しました';
     document.getElementById('apiStatus').className = 'api-status ok';
   }
 
   function getApiKey() {
-    return localStorage.getItem('claudeApiKey') || '';
+    return localStorage.getItem('openaiApiKey') || '';
   }
 
   // ─── ファイル読み込み・パース ────────────────────────────────
@@ -697,22 +696,25 @@
     if (currentIdx === idx) renderScene();
 
     try {
-      var resp = await fetch('https://api.anthropic.com/v1/messages', {
+      var resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
+          'Authorization': 'Bearer ' + apiKey
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
+          model: 'gpt-4o-mini',
           max_tokens: 200,
-          system: '日本語の怪談原稿から情報を抽出します。JSONのみ返し、マークダウン記号や説明文は一切含めないでください。',
-          messages: [{
-            role: 'user',
-            content: '以下の文章から「場所」と「登場人物」を抽出してJSONのみ返してください。\n形式: {"location":"場所（短く）","characters":"人物A、人物B"}\n・場所は文中に実際に登場する場所を短く\n・登場人物は文中に登場・言及されているもののみ（語り手視点の現在なら語り部）\n・確信が持てない場合は「—」\n\n文章:\n' + scenes[idx].raw.substring(0, 600)
-          }]
+          messages: [
+            {
+              role: 'system',
+              content: '日本語の怪談原稿から情報を抽出します。JSONのみ返し、マークダウン記号や説明文は一切含めないでください。'
+            },
+            {
+              role: 'user',
+              content: '以下の文章から「場所」と「登場人物」を抽出してJSONのみ返してください。\n形式: {"location":"場所（短く）","characters":"人物A、人物B"}\n・場所は文中に実際に登場する場所を短く\n・登場人物は文中に登場・言及されているもののみ（語り手視点の現在なら語り部）\n・確信が持てない場合は「—」\n\n文章:\n' + scenes[idx].raw.substring(0, 600)
+            }
+          ]
         })
       });
 
@@ -720,7 +722,7 @@
 
       if (data.error) throw new Error(data.error.message);
 
-      var resultText = data.content[0].text.trim();
+      var resultText = data.choices[0].message.content.trim();
       // JSONブロックが ```json ... ``` で返ってきた場合も対応
       var jsonMatch = resultText.match(/\{[\s\S]*?\}/);
       if (!jsonMatch) throw new Error('JSON parse failed: ' + resultText);
