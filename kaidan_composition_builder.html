@@ -125,9 +125,9 @@ body{font-family:var(--font-serif);color:var(--ink);min-height:100vh}
 
 <script>
 var AXES=[
-  {key:'angle',label:'アングル',mono:'ANGLE',options:['バードアイ','ハイアングル','アイレベル','ローアングル','ワームアイ','ダッチ']},
-  {key:'size',label:'サイズ',mono:'SIZE',options:['遠景','全身','バストアップ','クローズアップ']},
-  {key:'direction',label:'向き',mono:'DIRECTION',options:['正面','左向き','右向き','後ろ姿']}
+  {key:'angle',label:'アングル',mono:'ANGLE',options:['ハイ','アイレベル','ロー']},
+  {key:'size',label:'サイズ',mono:'SIZE',options:['ロング','ミディアム','バスト','CU']},
+  {key:'direction',label:'向き',mono:'DIRECTION',options:['正面','斜め前','横','斜め後ろ','背後','POV']}
 ];
 
 var scenes=[];
@@ -506,29 +506,33 @@ function renderPreview(){
   if(!AXES.every(function(a){return sel[a.key]})){
     el.innerHTML='<div class="preview-box preview-empty">三軸を選ぶと構図が立ち上がる<br>SELECT ALL THREE AXES</div>';return;
   }
-  var vMap={'バードアイ':'10%','ハイアングル':'28%','アイレベル':'50%','ローアングル':'68%','ワームアイ':'84%','ダッチ':'50%'};
+  var vMap={'ハイ':'28%','アイレベル':'50%','ロー':'68%'};
   var v=vMap[sel.angle]||'50%';
-  var dutch=sel.angle==='ダッチ';
-  var sMap={'クローズアップ':60,'バストアップ':42,'全身':28,'遠景':14};
+  var sMap={'CU':60,'バスト':42,'ミディアム':28,'ロング':14};
   var sz=sMap[sel.size]||28;
-  var h=sel.direction==='左向き'?'60%':sel.direction==='右向き'?'40%':'50%';
-  var flip=sel.direction==='左向き';
-  var back=sel.direction==='後ろ姿';
+  var hMap={'正面':'50%','斜め前':'42%','横':'35%','斜め後ろ':'60%','背後':'50%','POV':'50%'};
+  var h=hMap[sel.direction]||'50%';
+  var flip=sel.direction==='斜め後ろ'||sel.direction==='横';
+  var back=sel.direction==='背後';
+  var pov=sel.direction==='POV';
   var grid=['33%','66%'].map(function(x){
     return '<div style="position:absolute;left:'+x+';top:0;bottom:0;width:1px;background:rgba(212,168,67,.1)"></div>'+
            '<div style="position:absolute;top:'+x+';left:0;right:0;height:1px;background:rgba(212,168,67,.1)"></div>'
   }).join('');
-  var df=dutch?'<div style="position:absolute;inset:0;border:3px solid rgba(212,168,67,.18);transform:rotate(-12deg) scale(1.15);border-radius:4px"></div>':'';
   var eye=back?'':'<div style="position:absolute;top:22%;right:18%;width:6px;height:6px;border-radius:50%;background:rgba(212,168,67,.75)"></div>';
-  var subj=
-    '<div style="position:absolute;left:'+h+';top:'+v+';'+
-    'transform:translate(-50%,-50%) scaleX('+(flip?-1:1)+')'+(dutch?' rotate(-12deg)':'')+';'+
-    'width:'+sz+'%;aspect-ratio:3/4;'+
-    'background:linear-gradient(180deg,rgba(192,57,43,.3),rgba(139,26,26,.1));'+
-    'border:1px solid var(--crimson);border-radius:46% 46% 18% 18%">'+eye+'</div>';
+  var subj;
+  if(pov){
+    subj='<div style="position:absolute;inset:12%;border:1px solid rgba(212,168,67,.3);border-radius:2px;box-shadow:inset 0 0 80px 30px rgba(0,0,0,.8)"></div>';
+  }else{
+    subj='<div style="position:absolute;left:'+h+';top:'+v+';'+
+      'transform:translate(-50%,-50%) scaleX('+(flip?-1:1)+');'+
+      'width:'+sz+'%;aspect-ratio:3/4;'+
+      'background:linear-gradient(180deg,rgba(192,57,43,.3),rgba(139,26,26,.1));'+
+      'border:1px solid var(--crimson);border-radius:46% 46% 18% 18%">'+eye+'</div>';
+  }
   var lbl='<div style="position:absolute;left:10px;bottom:8px;font:var(--type-label);letter-spacing:var(--text-mono-track);color:var(--gold)">'+
     esc(sel.angle)+' · '+esc(sel.size)+' · '+esc(sel.direction)+'</div>';
-  el.innerHTML='<div class="preview-box preview-filled">'+grid+df+subj+lbl+'</div>';
+  el.innerHTML='<div class="preview-box preview-filled">'+grid+subj+lbl+'</div>';
 }
 
 function renderOutput(){
