@@ -287,17 +287,17 @@ function resetAll(){
 }
 
 function buildMarkdown(){
-  if(!scenes.length)return '';
+  var committed=scenes.filter(function(s){return s.selection||s.skipped});
+  if(!committed.length)return '';
   var out='# 構図プラン\n\n';
-  scenes.forEach(function(s){
+  committed.forEach(function(s){
     var num=pad2(s.number);var loc=s.location||'—';
     if(s.skipped){out+='## Scene '+num+' — '+loc+'\n- _[スキップ]_\n\n';return}
     out+='## Scene '+num+' — '+loc+'\n';
     out+='> '+s.rawText.replace(/\n/g,' ').substring(0,100)+'\n\n';
     var chars=Array.isArray(s.characters)?s.characters.join(' / '):(s.characters||'—');
     out+='- **登場**: '+chars+'\n';
-    if(s.selection)out+='- **構図**: '+s.selection.angle+' / '+s.selection.size+' / '+s.selection.direction+'\n';
-    else out+='- **構図**: _未設定_\n';
+    out+='- **構図**: '+s.selection.angle+' / '+s.selection.size+' / '+s.selection.direction+'\n';
     if(s.memo)out+='- **メモ**: '+s.memo+'\n';
     out+='\n';
   });
