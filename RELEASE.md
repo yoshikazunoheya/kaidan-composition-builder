@@ -1,5 +1,24 @@
 # Release Notes
 
+## v1.1 — Design System Unification + Block-Scoped Output (2026-07-04)
+
+3ツール間でCSSが二重管理・デザイン不一致になっていたのを解消し、あわせて構図ビルダーのOUTPUT欄をブロック単位に変更。
+
+### Refactor
+
+- **`design-system.css`を新設**: Kaidan Shosekikan Design System v1.0のトークン・共通コンポーネント（`.panel` `.btn*` `.badge*` `.scene-card` 等）を外部ファイルに集約し、3ページ（`index.html` / `kaidan_image_renamer.html` / `kaidan_composition_builder.html`）から共通で読み込む形に変更
+- **`washi.js`を新設**: 和紙テクスチャ生成スクリプトを分離し、3ページで共有
+- `index.html`・`kaidan_image_renamer.html`を旧デザイン（Noto Serif JP／`--accent`系トークン）から新デザインシステムに全面移行。両ページのJSロジックは無変更
+- 「← HOME」リンクの色替え処理を`.home-link`クラスに統合し、重複していたインラインJSを削除
+
+### Changed
+
+- **構図ビルダーのOUTPUT欄をブロック単位に変更**: これまでプロジェクト全体の確定済みシーンを累積表示していたOUTPUT（Obsidian Markdown）を、現在の10カットブロックのシーンのみに限定。ブロックを移動するとOUTPUT欄の表示・コピー内容もそのブロックのものに切り替わる（シーンの選択・メモ・スキップのデータ自体は削除されない）
+- 確定済みシーンが0件のブロックでは案内メッセージを表示
+- ラベルを「OUTPUT — BLOCK N · OBSIDIAN MARKDOWN」に変更し、進捗バーの「BLOCK N」表記と統一
+
+---
+
 ## v1.0 — Design System Overhaul (2026-06-27)
 
 Kaidan Shosekikan Design System に基づく全面リデザイン。

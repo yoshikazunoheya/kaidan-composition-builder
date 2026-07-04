@@ -5,28 +5,9 @@
 <title>怪奇書籍館｜ツールダッシュボード</title>
 <link rel="icon" href="favicon.png" type="image/png">
 <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="design-system.css">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg: #0e0e0f;
-    --surface: #161618;
-    --surface2: #1e1e21;
-    --border: #2a2a2e;
-    --accent: #c8a96e;
-    --accent2: #7c6a4e;
-    --text: #e8e4dc;
-    --text-dim: #7a776f;
-    --text-mid: #a8a49c;
-  }
-
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Noto Serif JP', serif;
-    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -34,29 +15,16 @@
     padding: 40px 24px;
   }
 
-  .logo {
-    font-size: 13px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--text-dim);
-    letter-spacing: 0.2em;
-    margin-bottom: 12px;
-    text-transform: uppercase;
+  .subtitle {
+    margin-bottom: 56px;
   }
 
   h1 {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--accent);
-    letter-spacing: 0.08em;
+    font: var(--type-display);
+    color: var(--gold);
+    letter-spacing: 0.04em;
     margin-bottom: 8px;
     text-align: center;
-  }
-
-  .subtitle {
-    font-size: 13px;
-    color: var(--text-dim);
-    margin-bottom: 56px;
-    letter-spacing: 0.05em;
   }
 
   .tools {
@@ -65,43 +33,18 @@
   }
 
   .tool-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 32px 28px;
     width: 220px;
     text-decoration: none;
-    color: var(--text);
-    transition: all 0.2s;
+    color: var(--ink);
+    transition: transform .2s, border-color .2s;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
   .tool-card:hover {
-    border-color: var(--accent2);
-    background: #1a1a1c;
+    border-color: var(--gold-dim);
     transform: translateY(-2px);
-  }
-
-  .tool-icon {
-    font-size: 28px;
-    margin-bottom: 4px;
-  }
-
-  .tool-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--accent);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-  }
-
-  .tool-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text);
-    line-height: 1.4;
   }
 
   .tool-icon {
@@ -112,37 +55,41 @@
   .tool-icon svg {
     width: 32px;
     height: 32px;
-    stroke: var(--accent2);
+    stroke: var(--ink-mid);
     stroke-width: 1.5;
     fill: none;
     transition: stroke 0.2s;
   }
-  .tool-card:hover .tool-icon svg { stroke: var(--accent); }
+  .tool-card:hover .tool-icon svg { stroke: var(--gold); }
+
+  .tool-name {
+    font: var(--type-heading);
+    color: var(--ink);
+  }
 
   .tool-desc {
+    font: var(--type-body);
     font-size: 12px;
-    color: var(--text-dim);
+    color: var(--ink-dim);
     line-height: 1.6;
   }
 
   .footer {
     position: fixed;
     bottom: 20px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text-dim);
-    letter-spacing: 0.1em;
   }
 </style>
 </head>
 <body>
 
-  <div class="logo">怪奇書籍館 — tools</div>
+<script src="washi.js"></script>
+
+  <div class="label">怪奇書籍館 — tools</div>
   <h1>怪奇書籍館</h1>
-  <div class="subtitle">怪談動画制作ツール一覧</div>
+  <div class="label subtitle">怪談動画制作ツール一覧</div>
 
   <div class="tools">
-    <a class="tool-card" href="kaidan_composition_builder.html">
+    <a class="tool-card panel" href="kaidan_composition_builder.html">
       <div class="tool-icon">
         <!-- Film icon -->
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -156,12 +103,12 @@
           <line x1="17" y1="7" x2="22" y2="7"></line>
         </svg>
       </div>
-      <div class="tool-label">tool 01</div>
+      <span class="badge badge-gold">tool 01</span>
       <div class="tool-name">構図ビルダー</div>
       <div class="tool-desc">シーン一覧を読み込んで3軸の構図をポチポチ決める</div>
     </a>
 
-    <a class="tool-card" href="kaidan_image_renamer.html">
+    <a class="tool-card panel" href="kaidan_image_renamer.html">
       <div class="tool-icon">
         <!-- Images icon -->
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -170,13 +117,13 @@
           <polyline points="21 15 16 10 5 21"></polyline>
         </svg>
       </div>
-      <div class="tool-label">tool 02</div>
+      <span class="badge badge-gold">tool 02</span>
       <div class="tool-name">画像リネーマー</div>
       <div class="tool-desc">生成画像を確認しながら連番リネームしてZIPで出力</div>
     </a>
   </div>
 
-  <div class="footer">v0.1 — 怪奇書籍館制作ツール</div>
+  <div class="label footer">v0.1 — 怪奇書籍館制作ツール</div>
 
 </body>
 </html>

@@ -5,33 +5,15 @@
 <title>怪奇書籍館｜画像リネーマー</title>
 <link rel="icon" href="favicon.png" type="image/png">
 <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="design-system.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
-    --bg: #0e0e0f;
-    --surface: #161618;
-    --surface2: #1e1e21;
-    --border: #2a2a2e;
-    --accent: #c8a96e;
-    --accent2: #7c6a4e;
-    --text: #e8e4dc;
-    --text-dim: #7a776f;
-    --text-mid: #a8a49c;
-    --selected: #2a2318;
-    --selected-border: #c8a96e;
+    --selected: var(--ember);
+    --selected-border: var(--gold);
   }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Noto Serif JP', serif;
-    min-height: 100vh;
-    padding: 24px;
-  }
+  body { padding: 24px; }
 
   .header {
     border-bottom: 1px solid var(--border);
@@ -42,23 +24,12 @@
     gap: 16px;
   }
 
-  .header h1 { font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: 0.05em; }
-  .header span { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+  .header h1 { font: var(--type-heading); color: var(--gold); }
+  .header span { font: var(--type-label); letter-spacing: var(--text-mono-track); color: var(--ink-dim); }
 
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
+  .panel { margin-bottom: 20px; }
 
   .panel-title {
-    font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--text-dim);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
     margin-bottom: 16px;
     padding-bottom: 10px;
     border-bottom: 1px solid var(--border);
@@ -72,23 +43,21 @@
 
   .title-input {
     flex: 1;
-    background: var(--surface2);
+    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     padding: 10px 14px;
-    color: var(--text);
-    font-family: 'Noto Serif JP', serif;
-    font-size: 14px;
+    color: var(--ink);
+    font: var(--type-body);
     outline: none;
     transition: border-color 0.2s;
   }
-  .title-input:focus { border-color: var(--accent2); }
-  .title-input::placeholder { color: var(--text-dim); }
+  .title-input:focus { border-color: var(--gold-dim); }
+  .title-input::placeholder { color: var(--ink-dim); }
 
   .title-preview {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    color: var(--accent);
+    font: var(--type-label);
+    color: var(--gold);
     white-space: nowrap;
   }
 
@@ -101,20 +70,19 @@
   }
 
   .batch-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    color: var(--text-dim);
+    font: var(--type-label);
+    color: var(--ink-dim);
   }
 
   .btn-add-batch {
-    background: var(--surface2);
-    border: 1px solid var(--accent2);
-    color: var(--accent);
+    background: var(--surface-2);
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
     padding: 6px 14px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font: var(--type-label);
+    letter-spacing: var(--text-mono-track);
     cursor: pointer;
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     transition: all 0.15s;
   }
   .btn-add-batch:hover { background: var(--selected); }
@@ -130,9 +98,9 @@
 
   .slot {
     aspect-ratio: 1;
-    background: var(--surface2);
+    background: var(--surface-2);
     border: 1px dashed var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -142,14 +110,13 @@
     position: relative;
     overflow: hidden;
   }
-  .slot:hover { border-color: var(--accent2); }
-  .slot.filled { border-style: solid; border-color: var(--accent2); cursor: default; }
-  .slot.dragover { border-color: var(--accent); background: var(--selected); }
+  .slot:hover { border-color: var(--gold-dim); }
+  .slot.filled { border-style: solid; border-color: var(--gold-dim); cursor: default; }
+  .slot.dragover { border-color: var(--gold); background: var(--selected); }
 
   .slot-num {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--text-dim);
+    font: var(--type-label);
+    color: var(--ink-dim);
     margin-bottom: 6px;
     position: relative;
     z-index: 1;
@@ -164,17 +131,16 @@
   }
 
   .slot-name {
-    font-family: 'JetBrains Mono', monospace;
+    font: var(--type-label);
     font-size: 9px;
-    color: var(--accent);
+    color: var(--gold);
     position: relative;
     z-index: 1;
     text-align: center;
-    padding: 0 4px;
-    word-break: break-all;
-    background: rgba(14,14,15,0.7);
-    border-radius: 2px;
     padding: 2px 4px;
+    word-break: break-all;
+    background: rgba(10,10,11,0.7);
+    border-radius: var(--radius-sm);
   }
 
   .slot-empty-icon {
@@ -186,18 +152,18 @@
   .slot-remove {
     position: absolute;
     top: 4px; right: 4px;
-    background: rgba(14,14,15,0.8);
+    background: rgba(10,10,11,0.8);
     border: none;
-    color: var(--text-dim);
+    color: var(--ink-dim);
     font-size: 10px;
     cursor: pointer;
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 2px 4px;
     z-index: 2;
     display: none;
   }
   .slot.filled:hover .slot-remove { display: block; }
-  .slot-remove:hover { color: #c97a7a; }
+  .slot-remove:hover { color: var(--crimson-lit); }
 
   /* アクションボタン */
   .action-row {
@@ -206,42 +172,14 @@
     margin-top: 8px;
   }
 
-  .btn-primary {
-    background: var(--accent2);
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    padding: 10px 24px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    cursor: pointer;
-    border-radius: 2px;
-    transition: all 0.15s;
-  }
-  .btn-primary:hover { background: #3a2f1e; }
-  .btn-primary:disabled { opacity: 0.3; cursor: default; }
-
-  .btn-secondary {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 10px 20px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    cursor: pointer;
-    border-radius: 2px;
-    transition: all 0.15s;
-  }
-  .btn-secondary:hover { border-color: var(--accent2); color: var(--text-mid); }
-
   .status-msg {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
+    font: var(--type-label);
+    color: var(--ink-dim);
     margin-top: 12px;
     min-height: 16px;
   }
-  .status-msg.ok { color: var(--accent); }
-  .status-msg.err { color: #c97a7a; }
+  .status-msg.ok { color: var(--gold); }
+  .status-msg.err { color: var(--crimson-lit); }
 
   /* リスト */
   .file-list {
@@ -258,13 +196,13 @@
   }
 
   .file-item .num {
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--accent);
+    font-family: var(--font-mono);
+    color: var(--gold);
     min-width: 36px;
   }
 
   .file-item .original {
-    color: var(--text-dim);
+    color: var(--ink-dim);
     flex: 1;
     overflow: hidden;
     white-space: nowrap;
@@ -274,8 +212,8 @@
   .file-item .arrow { color: var(--border); }
 
   .file-item .renamed {
-    color: var(--text-mid);
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--ink-mid);
+    font-family: var(--font-mono);
     flex: 1;
     overflow: hidden;
     white-space: nowrap;
@@ -285,15 +223,17 @@
 </head>
 <body>
 
+<script src="washi.js"></script>
+
 <div class="header">
-  <a href="index.html" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);text-decoration:none;margin-right:8px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-dim)'">← ホーム</a>
+  <a href="index.html" class="home-link" style="margin-right:8px">← ホーム</a>
   <h1>怪奇書籍館｜画像リネーマー</h1>
   <span>v0.1 — image renamer</span>
 </div>
 
 <!-- タイトル入力 -->
 <div class="panel">
-  <div class="panel-title">STEP 01 — お話のタイトルを入力</div>
+  <div class="label panel-title">STEP 01 — お話のタイトルを入力</div>
   <div class="title-row">
     <input class="title-input" id="titleInput" type="text" placeholder="例：つぐないの家" oninput="updatePreview()">
     <span class="title-preview" id="titlePreview">タイトル_01.jpg</span>
@@ -302,15 +242,15 @@
 
 <!-- スロット -->
 <div class="panel">
-  <div class="panel-title">STEP 02 — 画像を1枚ずつドロップ</div>
+  <div class="label panel-title">STEP 02 — 画像を1枚ずつドロップ</div>
 
   <div id="batchContainer">
     <!-- JS生成 -->
   </div>
 
   <div class="action-row">
-    <button class="btn-primary" id="downloadBtn" onclick="downloadZip()" disabled>📦 ZIPでダウンロード</button>
-    <button class="btn-secondary" onclick="resetAll()">全リセット</button>
+    <button class="btn btn-primary" id="downloadBtn" onclick="downloadZip()" disabled>📦 ZIPでダウンロード</button>
+    <button class="btn btn-secondary" onclick="resetAll()">全リセット</button>
   </div>
   <div class="status-msg" id="statusMsg"></div>
 
