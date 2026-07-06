@@ -7,7 +7,13 @@
       "Bash(npx --yes playwright@latest install chromium)",
       "Bash(node -e ' *)",
       "Bash(npm init *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(chromium-cli --help)",
+      "Bash(npm ls *)",
+      "Read(//c//**)",
+      "Bash(timeout 15 bash -c 'until curl -sf http://localhost:8792/index.html >/dev/null; do sleep 1; done')",
+      "Bash(chromium-cli --session kaidan)",
+      "PowerShell(Get-Command chromium-cli -ErrorAction SilentlyContinue)"
     ]
   }
 }

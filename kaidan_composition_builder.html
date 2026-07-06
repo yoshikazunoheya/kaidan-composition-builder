@@ -52,6 +52,7 @@ document.getElementById('mdFile').addEventListener('change',function(e){
   reader.onload=function(ev){
     var text=ev.target.result;
     if(text.split('\n').filter(function(l){return l.trim().startsWith('|')}).length>3) parseMdTable(text);
+    else if(/^#{1,3}\s*シーン\s*\d+\s*$/m.test(text)) parseSceneHeadings(text);
     else parsePlainScript(text);
   };
   reader.readAsText(file,'UTF-8');
@@ -66,6 +67,26 @@ function parsePlainScript(text){
   });
   active=0;syncUI();renderAll();
   if(getApiKey())setTimeout(function(){for(var i=0;i<Math.min(3,scenes.length);i++)analyzeScene(i)},300);
+}
+
+function parseSceneHeadings(text){
+  var re=/^#{1,3}\s*シーン\s*(\d+)\s*$/gm;
+  var matches=[];var m;
+  while((m=re.exec(text))){matches.push({num:parseInt(m[1],10),headingIndex:m.index,contentStart:re.lastIndex})}
+  if(!matches.length)return;
+  var parsed=matches.map(function(mt,i){
+    var stop=i+1<matches.length?matches[i+1].headingIndex:text.length;
+    var block=text.substring(mt.contentStart,stop).trim();
+    var locMatch=block.match(/場所[：:]\s*(.+)/);
+    var chMatch=block.match(/登場人物[：:]\s*(.+)/);
+    var loc=locMatch?locMatch[1].trim():'—';
+    var chRaw=chMatch?chMatch[1].trim():'—';
+    var characters=chRaw==='—'?['—']:chRaw.split(/[、,]/).map(function(s){return s.trim()}).filter(Boolean);
+    var body=block.replace(/^登場人物[：:].*$/m,'').replace(/^場所[：:].*$/m,'').trim();
+    return{number:mt.num,rawText:body||block,location:loc,characters:characters,memo:'',skipped:false,selection:null,analyzing:false,analyzed:true}
+  });
+  if(!parsed.length)return;
+  scenes=parsed;active=0;syncUI();renderAll();
 }
 
 function parseMdTable(text){
