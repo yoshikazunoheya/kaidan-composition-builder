@@ -204,6 +204,21 @@ function resetAll(){
   currentSel={};currentMemo='';renderAll();
 }
 
+function sceneSummary(s){
+  var t=(s.rawText||'').replace(/\n/g,'').trim();
+  var sentences=t.split(/(?<=[。！？])/).filter(Boolean);
+  var out='';
+  for(var i=0;i<sentences.length&&out.length<20;i++)out+=sentences[i];
+  if(!out)out=t;
+  return out.length>40?out.substring(0,40)+'…':out;
+}
+
+function sceneLabel(s){
+  var loc=s.location&&s.location!=='—'?s.location:'';
+  var summary=sceneSummary(s);
+  return loc?loc+'｜'+summary:summary;
+}
+
 function buildMarkdown(){
   if(!scenes.length)return '';
   var r=getBlockRange(active);
@@ -211,9 +226,9 @@ function buildMarkdown(){
   if(!committed.length)return '';
   var out='# 構図プラン\n\n';
   committed.forEach(function(s){
-    var num=pad2(s.number);var loc=s.location||'—';
-    if(s.skipped){out+='## Scene '+num+' — '+loc+'\n- _[スキップ]_\n\n';return}
-    out+='## Scene '+num+' — '+loc+'\n';
+    var num=pad2(s.number);var label=sceneLabel(s);
+    if(s.skipped){out+='## Scene '+num+' — '+label+'\n- _[スキップ]_\n\n';return}
+    out+='## Scene '+num+' — '+label+'\n';
     out+='> '+s.rawText.replace(/\n/g,' ').substring(0,100)+'\n\n';
     var chars=Array.isArray(s.characters)?s.characters.join(' / '):(s.characters||'—');
     out+='- **登場**: '+chars+'\n';
