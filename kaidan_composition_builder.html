@@ -28,6 +28,7 @@ var active=0;
 var currentSel={};
 var currentMemo='';
 var isAnalyzingAll=false;
+var isGeneratingPrompts=false;
 var CHARACTERS={};
 var NEGATIVE_CHARACTER_COMMON='';
 var charFileName='';
@@ -154,6 +155,119 @@ function buildCharacterBlock(key,era){
     'Personality: '+c.base.personality_note+
     (e.age_note?'\nAge: '+e.age_note:'')
   );
+}
+
+/* ── ④ プロンプト生成：固定ブロック ── */
+var FIXED_STYLE_HEADER_TMPL='Cinematic live-action Japanese psychological horror drama film still, photorealistic, set in {era}, horizontal 16:9.';
+var FIXED_CHARACTER_CONSISTENCY='CHARACTER CONSISTENCY — ABSOLUTE PRIORITY:\nKeep the same faces, hairstyles, body types, ages, posture habits, and clothing across all scenes.\nDo not redesign, recast, beautify, age up, age down, merge, or swap the characters.\nEach named character must look like the same recurring person from the established character sheet.';
+var FIXED_CLOTHING_CONTINUITY='CLOTHING CONTINUITY:\nKeep the exact same clothing as established for this story unless the script explicitly states a costume change.\nDo not change clothing based on location, mood, time of day, or genre atmosphere.\nNo added jackets, coats, uniforms, hospital gowns, accessories, or fashionable redesigns unless specified.';
+var FIXED_STYLE_BLOCK='STYLE:\ncinematic Japanese psychological horror drama, photorealistic, muted palette, naturalistic lighting, subtle film grain, restrained dread.';
+var FIXED_NEGATIVE_TECH='text, caption, subtitle, logo, watermark, UI, title,\nanime, illustration, manga, 3D, CGI-looking skin,\nexcessive gore, explicit injury, exposed flesh, splatter,\nno graphic injury, no explicit medical procedure, no self-harm, no visible wound.';
+var ANGLE_EN={'ハイ':'high-angle camera','アイレベル':'eye-level camera','ロー':'low-angle camera'};
+var SIZE_EN={'ロング':'long shot','ミディアム':'medium shot','バスト':'bust shot','CU':'close-up shot'};
+var DIRECTION_EN={'正面':'front view','斜め前':'three-quarter front view','横':'side view','斜め後ろ':'three-quarter back view','背後':'view from behind','POV':'first-person POV view'};
+
+function buildCompositionBlock(sel){
+  return 'COMPOSITION — ABSOLUTE PRIORITY:\nhorizontal 16:9, '+(ANGLE_EN[sel.angle]||sel.angle)+', '+(SIZE_EN[sel.size]||sel.size)+', '+(DIRECTION_EN[sel.direction]||sel.direction)+'.';
+}
+
+function buildCharacterBlocksSection(s){
+  if(!Object.keys(CHARACTERS).length)return '';
+  var chars=Array.isArray(s.characters)?s.characters:[];
+  var blocks=chars.filter(function(n){return n&&n!=='—'}).map(function(name){
+    var key=findCharacterKey(name);
+    if(!key||!s.era||s.era==='要確認')return null;
+    return buildCharacterBlock(key,s.era);
+  }).filter(Boolean);
+  return blocks.length?('CHARACTER BLOCKS:\n\n'+blocks.join('\n\n')):'';
+}
+
+function buildFullPrompt(s,sceneEn){
+  var parts=[];
+  parts.push(FIXED_STYLE_HEADER_TMPL.replace('{era}',(s.era&&s.era!=='要確認')?s.era:"the story's established era"));
+  parts.push(FIXED_CHARACTER_CONSISTENCY);
+  var cb=buildCharacterBlocksSection(s);if(cb)parts.push(cb);
+  parts.push(FIXED_CLOTHING_CONTINUITY);
+  parts.push('SCENE:\n'+sceneEn);
+  parts.push(buildCompositionBlock(s.selection));
+  parts.push(FIXED_STYLE_BLOCK);
+  parts.push('NEGATIVE:\n'+FIXED_NEGATIVE_TECH+(NEGATIVE_CHARACTER_COMMON?'\n'+NEGATIVE_CHARACTER_COMMON:''));
+  return parts.join('\n\n');
+}
+
+async function translateSceneToEnglish(s){
+  var apiKey=getApiKey();
+  var resp=await fetch('https://api.openai.com/v1/chat/completions',{
+    method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+    body:JSON.stringify({model:'gpt-4o-mini',max_tokens:180,messages:[
+      {role:'system',content:'あなたは怪談の原稿から、画像生成プロンプト用の「SCENE」セクションだけを英訳・要約するアシスタントです。原稿全体ではなく、指定された一瞬だけを切り取って描写してください。セリフや説明文は入れず、状況・行動・視線・姿勢のみを英語で簡潔に(3文以内)記述してください。人物の外見(顔・髪型・服装等)は一切書かないでください。それは別セクションで固定済みです。出力は英文のみ、前置きや見出しは付けないでください。'},
+      {role:'user',content:'原稿:\n'+s.rawText.substring(0,600)+(s.memo?'\n\n演出メモ:\n'+s.memo:'')}
+    ]})
+  });
+  var data=await resp.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.choices[0].message.content.trim();
+}
+
+async function generatePrompt(idx){
+  if(!scenes[idx]||!scenes[idx].selection)return;
+  if(!getApiKey()){alert('OpenAI APIキーを設定してください');return}
+  scenes[idx].promptGenerating=true;
+  if(active===idx)renderRight();
+  try{
+    var sceneEn=await translateSceneToEnglish(scenes[idx]);
+    scenes[idx].prompt=buildFullPrompt(scenes[idx],sceneEn);
+  }catch(e){
+    scenes[idx].prompt=null;
+    alert('プロンプト生成に失敗しました: '+(e.message||e));
+  }
+  scenes[idx].promptGenerating=false;
+  if(active===idx)renderRight();
+  saveDraft();
+}
+
+function copyPrompt(idx){
+  var s=scenes[idx];if(!s||!s.prompt)return;
+  navigator.clipboard.writeText(s.prompt).then(function(){
+    var btn=document.getElementById('copyPromptBtn');
+    if(btn){btn.textContent='✓ COPIED';setTimeout(function(){btn.textContent='COPY PROMPT'},2000)}
+  });
+}
+
+async function generateBlockPrompts(){
+  if(!scenes.length||isGeneratingPrompts||!getApiKey())return;
+  var r=getBlockRange(active);
+  var targets=[];
+  for(var i=r.start;i<r.end;i++){
+    var s=scenes[i];
+    if(s.selection&&!s.skipped&&!s.prompt)targets.push(i);
+  }
+  if(!targets.length)return;
+  isGeneratingPrompts=true;renderAll();
+  for(var j=0;j<targets.length;j++){
+    await generatePrompt(targets[j]);
+    renderProgress();renderOutput();
+    await new Promise(function(r2){setTimeout(r2,300)});
+  }
+  isGeneratingPrompts=false;renderAll();
+}
+
+function buildPromptsOutput(){
+  if(!scenes.length)return '';
+  var r=getBlockRange(active);
+  var committed=scenes.slice(r.start,r.end).filter(function(s){return s.prompt});
+  if(!committed.length)return '';
+  return committed.map(function(s){
+    return '### Scene '+pad2(s.number)+' — '+sceneLabel(s)+'\n\n'+s.prompt;
+  }).join('\n\n---\n\n');
+}
+
+function copyPromptsOutput(){
+  var text=buildPromptsOutput();if(!text.trim())return;
+  navigator.clipboard.writeText(text).then(function(){
+    var btn=document.getElementById('copyPromptsBlockBtn');
+    if(btn){btn.textContent='✓ COPIED';btn.classList.add('copied');setTimeout(function(){btn.textContent='COPY';btn.classList.remove('copied')},2000)}
+  });
 }
 
 function parsePlainScript(text){
@@ -393,13 +507,17 @@ function renderProgress(){
   });
   for(var p=0;p<10-bsc.length;p++)cells+='<div style="width:20px;height:20px;border-radius:var(--radius-sm);border:1px dashed var(--border);opacity:.3"></div>';
   var hasNext=be<scenes.length;
+  var promptTargets=bsc.filter(function(s){return s.selection&&!s.skipped&&!s.prompt}).length;
   el.innerHTML=
     '<div style="padding:var(--space-md) var(--space-lg) 0">'+
       '<div class="panel" style="padding:var(--space-sm)">'+
         '<div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap">'+
           '<span class="label">BLOCK '+(block+1)+' &nbsp;·&nbsp; '+done+' / '+bsc.length+'</span>'+
           '<div style="display:flex;gap:4px">'+cells+'</div>'+
-          (hasNext?'<button class="btn btn-secondary" style="margin-left:auto;padding:4px 10px" onclick="jumpNextBlock()">次の10カットへ ›</button>':'')+
+          '<div style="margin-left:auto;display:flex;gap:var(--space-xs)">'+
+            (promptTargets?'<button class="btn btn-secondary" style="padding:4px 10px" onclick="generateBlockPrompts()"'+(isGeneratingPrompts?' disabled':'')+'>'+(isGeneratingPrompts?'PROMPT生成中…':'このブロックをPROMPT一括生成 ('+promptTargets+')')+'</button>':'')+
+            (hasNext?'<button class="btn btn-secondary" style="padding:4px 10px" onclick="jumpNextBlock()">次の10カットへ ›</button>':'')+
+          '</div>'+
         '</div>'+
       '</div>'+
     '</div>';
@@ -504,6 +622,10 @@ function renderAxesInner(){
   });
   html+='</div>';
   html+='<div style="margin-top:var(--space-md)"><button class="btn btn-primary" onclick="commitScene()"'+(complete?'':' disabled')+'>'+(cur.selection?'UPDATE SCENE':'ADD SCENE')+'</button></div>';
+  if(cur.selection){
+    var pg=cur.promptGenerating;
+    html+='<div style="margin-top:var(--space-sm)"><button class="btn btn-secondary" onclick="generatePrompt('+active+')"'+(pg?' disabled':'')+'>'+(pg?'生成中…':(cur.prompt?'PROMPT 再生成':'PROMPT 生成'))+'</button></div>';
+  }
   return html;
 }
 
@@ -565,6 +687,21 @@ function renderRight(){
       meta+
     '</article>';
 
+  var promptPanel='';
+  if(cur.prompt||cur.promptGenerating){
+    promptPanel=
+      '<div class="panel">'+
+        '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-sm)">'+
+          '<span class="label">IMAGE PROMPT</span>'+
+          (cur.prompt?'<button class="copy-btn" id="copyPromptBtn" onclick="copyPrompt('+active+')" style="margin-left:auto">COPY PROMPT</button>':'')+
+        '</div>'+
+        (cur.promptGenerating?
+          '<div style="padding:var(--space-md) 0;text-align:center;font:var(--type-body);color:var(--ink-dim)">生成中…</div>':
+          '<pre class="output-pre">'+esc(cur.prompt||'')+'</pre>'
+        )+
+      '</div>';
+  }
+
   el.innerHTML=
     '<div class="panel">'+
       '<div class="label" style="margin-bottom:var(--space-sm)">CURRENT SCENE</div>'+
@@ -574,7 +711,8 @@ function renderRight(){
     '<div class="panel">'+
       '<div class="label" style="margin-bottom:var(--space-sm)">COMPOSITION PREVIEW</div>'+
       '<div id="previewContainer"></div>'+
-    '</div>';
+    '</div>'+
+    promptPanel;
   renderPreview();
 }
 
@@ -622,6 +760,9 @@ function renderOutput(){
   var md=buildMarkdown();
   var body=md?'<pre class="output-pre">'+esc(md)+'</pre>':
     '<div class="label" style="color:var(--ink-dim);padding:var(--space-md) 0;text-align:center">このブロックにはまだ確定済みシーンがありません</div>';
+  var promptsMd=buildPromptsOutput();
+  var promptsBody=promptsMd?'<pre class="output-pre">'+esc(promptsMd)+'</pre>':
+    '<div class="label" style="color:var(--ink-dim);padding:var(--space-md) 0;text-align:center">このブロックにはまだ生成済みプロンプトがありません</div>';
   el.innerHTML=
     '<div class="panel" style="padding:var(--space-md)">'+
       '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-sm)">'+
@@ -629,6 +770,13 @@ function renderOutput(){
         '<button class="copy-btn" id="copyBtn" onclick="copyOutput()" style="margin-left:auto">COPY</button>'+
       '</div>'+
       body+
+    '</div>'+
+    '<div class="panel" style="padding:var(--space-md);margin-top:var(--space-sm)">'+
+      '<div style="display:flex;align-items:center;gap:var(--space-sm);margin-bottom:var(--space-sm)">'+
+        '<span class="label">PROMPTS — BLOCK '+(r.block+1)+' · 画像生成AI用</span>'+
+        '<button class="copy-btn" id="copyPromptsBlockBtn" onclick="copyPromptsOutput()" style="margin-left:auto">COPY</button>'+
+      '</div>'+
+      promptsBody+
     '</div>';
 }
 
