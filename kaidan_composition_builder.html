@@ -11,6 +11,7 @@
 <body>
 
 <input type="file" id="mdFile" accept=".md,.txt" style="display:none">
+<input type="file" id="charFile" accept=".json" style="display:none">
 <div id="root"></div>
 
 <script src="washi.js"></script>
@@ -27,6 +28,9 @@ var active=0;
 var currentSel={};
 var currentMemo='';
 var isAnalyzingAll=false;
+var CHARACTERS={};
+var NEGATIVE_CHARACTER_COMMON='';
+var charFileName='';
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function pad2(n){return String(n).padStart(2,'0')}
@@ -58,6 +62,68 @@ document.getElementById('mdFile').addEventListener('change',function(e){
   reader.readAsText(file,'UTF-8');
   e.target.value='';
 });
+
+document.getElementById('charFile').addEventListener('change',function(e){
+  var file=e.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var parsed=JSON.parse(ev.target.result);
+      CHARACTERS=parsed.CHARACTERS||{};
+      NEGATIVE_CHARACTER_COMMON=parsed.NEGATIVE_CHARACTER_COMMON||'';
+      charFileName=file.name;
+    }catch(err){
+      alert('CHARACTERS JSONの読み込みに失敗しました: '+(err.message||err));
+      return;
+    }
+    renderAll();
+  };
+  reader.readAsText(file,'UTF-8');
+  e.target.value='';
+});
+
+/* ── キャラJSON照合 ── */
+function findCharacterKey(name){
+  if(!name)return null;
+  var keys=Object.keys(CHARACTERS);
+  for(var i=0;i<keys.length;i++){
+    var c=CHARACTERS[keys[i]];
+    if(c.displayName===name)return keys[i];
+    if(Array.isArray(c.aliases)&&c.aliases.indexOf(name)!==-1)return keys[i];
+  }
+  return null;
+}
+
+function validateSceneCharacters(s){
+  // 戻り値: [{name, key, status}]  status: 'ok' | 'unresolved' | 'era_missing'
+  var chars=Array.isArray(s.characters)?s.characters:[];
+  return chars.filter(function(n){return n&&n!=='—'}).map(function(name){
+    var key=findCharacterKey(name);
+    if(!key)return{name:name,key:null,status:'unresolved'};
+    if(!s.era||s.era==='要確認')return{name:name,key:key,status:'era_unknown'};
+    if(!CHARACTERS[key].eras||!CHARACTERS[key].eras[s.era])return{name:name,key:key,status:'era_missing'};
+    return{name:name,key:key,status:'ok'};
+  });
+}
+
+function buildCharacterBlock(key,era){
+  var c=CHARACTERS[key];if(!c)return null;
+  var e=c.eras&&c.eras[era];if(!e)return null;
+  return(
+    (c.displayName||key)+':\n'+
+    'Face: '+c.base.face+'\n'+
+    'Eyes: '+c.base.eyes+'\n'+
+    'Eyebrows: '+c.base.eyebrows+'\n'+
+    'Nose: '+c.base.nose+'\n'+
+    'Mouth: '+c.base.mouth+'\n'+
+    'Skin: '+c.base.skin+'\n'+
+    'Hair: '+c.base.hair_base+(e.hair?' '+e.hair:'')+'\n'+
+    'Body: '+c.base.body+'\n'+
+    'Clothing ('+era+'): '+e.clothing+'\n'+
+    'Personality: '+c.base.personality_note+
+    (e.age_note?'\nAge: '+e.age_note:'')
+  );
+}
 
 function parsePlainScript(text){
   var blocks=text.split(/\n---[^\n]*\n|^---[^\n]*\n/m).map(function(b){return b.trim()}).filter(function(b){return b.length>5});
@@ -306,12 +372,23 @@ function renderProgress(){
 function renderLeft(){
   var el=document.getElementById('leftCol');
   if(!scenes.length){
+    var charCount0=Object.keys(CHARACTERS).length;
     el.innerHTML=
       '<div class="panel">'+
         '<div class="label" style="margin-bottom:var(--space-sm)">SOURCE — 原稿読み込み</div>'+
         '<div class="upload-zone" onclick="document.getElementById(\'mdFile\').click()">'+
           '<p style="font:var(--type-body);color:var(--ink-dim);margin:0">原稿ファイル（.md / .txt）をクリックして選択</p>'+
           '<small style="font:var(--type-label);letter-spacing:var(--text-mono-track);color:var(--ink-dim);display:block;margin-top:var(--space-xs);text-transform:uppercase">--- で区切った原稿、またはシーン一覧MDに対応</small>'+
+        '</div>'+
+      '</div>'+
+      '<div class="panel" style="display:flex;align-items:center;gap:var(--space-xs);flex-wrap:wrap;margin-top:var(--space-sm)">'+
+        '<span class="label">CHARACTERS</span>'+
+        (charCount0?
+          '<span class="label" style="color:var(--gold)">'+esc(charFileName)+' — '+charCount0+'体</span>':
+          '<span class="label" style="color:var(--ink-dim)">未読み込み</span>'
+        )+
+        '<div style="margin-left:auto">'+
+          '<button class="btn-analyze" onclick="document.getElementById(\'charFile\').click()">'+(charCount0?'差し替え':'JSON読込')+'</button>'+
         '</div>'+
       '</div>';
     return;
@@ -328,6 +405,20 @@ function renderLeft(){
         '<button class="btn-analyze" onclick="document.getElementById(\'mdFile\').click()">変更</button>'+
         '<button class="btn-analyze" onclick="analyzeAll()"'+(hasKey?'':' disabled')+'>全解析</button>'+
         '<button class="btn-analyze" onclick="analyzeCurrentScene()"'+(hasKey?'':' disabled')+'>再解析</button>'+
+      '</div>'+
+    '</div>';
+
+  // Characters bar
+  var charCount=Object.keys(CHARACTERS).length;
+  var charBar=
+    '<div class="panel" style="display:flex;align-items:center;gap:var(--space-xs);flex-wrap:wrap">'+
+      '<span class="label">CHARACTERS</span>'+
+      (charCount?
+        '<span class="label" style="color:var(--gold)">'+esc(charFileName)+' — '+charCount+'体</span>':
+        '<span class="label" style="color:var(--ink-dim)">未読み込み — 時間軸/人物の照合ができません</span>'
+      )+
+      '<div style="margin-left:auto">'+
+        '<button class="btn-analyze" onclick="document.getElementById(\'charFile\').click()">'+(charCount?'差し替え':'JSON読込')+'</button>'+
       '</div>'+
     '</div>';
 
@@ -355,7 +446,7 @@ function renderLeft(){
   // Axes
   var axes='<div class="panel" id="axesPanel">'+renderAxesInner()+'</div>';
 
-  el.innerHTML=src+nav+memo+axes;
+  el.innerHTML=src+charBar+nav+memo+axes;
 }
 
 function renderAxesInner(){
@@ -408,7 +499,17 @@ function renderRight(){
   else if(cur.era===undefined||cur.era===null)bg+='<span class="badge badge-muted">⚠ 時間軸未設定</span>';
   if(sk)bg+='<span class="badge badge-muted">スキップ</span>';
   if(cur.analyzing)bg+='<span class="badge badge-muted analyzing">解析中…</span>';
-  chars.forEach(function(c){bg+='<span class="badge badge-muted">'+esc(c)+'</span>'});
+  var charCheckCount=Object.keys(CHARACTERS).length;
+  if(charCheckCount){
+    validateSceneCharacters(cur).forEach(function(v){
+      var warn=v.status!=='ok';
+      bg+='<span class="badge '+(warn?'badge-muted':'badge-muted')+'">'+(warn?'⚠ ':'')+esc(v.name)+
+        (v.status==='unresolved'?'（JSON内に該当なし）':v.status==='era_missing'?'（該当eraなし）':v.status==='era_unknown'?'（時間軸未確定）':'')+
+        '</span>';
+    });
+  }else{
+    chars.forEach(function(c){bg+='<span class="badge badge-muted">'+esc(c)+'</span>'});
+  }
 
   // Card
   var rawDisp=cur.rawText.replace(/\n/g,' ');
