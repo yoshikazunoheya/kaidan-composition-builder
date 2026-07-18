@@ -31,10 +31,41 @@ var isAnalyzingAll=false;
 var CHARACTERS={};
 var NEGATIVE_CHARACTER_COMMON='';
 var charFileName='';
+var lastSavedAt=null;
 
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function pad2(n){return String(n).padStart(2,'0')}
 function getApiKey(){return localStorage.getItem('openaiApiKey')||''}
+
+/* ── 一時保存（自動保存 + 確認付き復元） ── */
+function computeSourceHash(arr){
+  if(!arr||!arr.length)return '';
+  return arr.length+'|'+(arr[0].rawText||'').substring(0,50);
+}
+
+function saveDraft(){
+  if(!scenes.length)return;
+  try{
+    localStorage.setItem('kaidanDraft',JSON.stringify({hash:computeSourceHash(scenes),scenes:scenes,active:active,savedAt:Date.now()}));
+    lastSavedAt=Date.now();
+    var el=document.getElementById('draftStatus');
+    if(el)el.textContent='一時保存 済 '+new Date(lastSavedAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){/* 容量超過等は無視、次の保存で再試行 */}
+}
+
+function tryRestoreDraft(){
+  var raw=localStorage.getItem('kaidanDraft');if(!raw)return false;
+  var draft;try{draft=JSON.parse(raw)}catch(e){return false}
+  if(!draft||!draft.scenes||!draft.scenes.length)return false;
+  if(draft.hash!==computeSourceHash(scenes))return false;
+  var hasProgress=draft.scenes.some(function(s){return s.selection||s.skipped||s.prompt});
+  if(!hasProgress)return false;
+  var when=new Date(draft.savedAt).toLocaleString('ja-JP');
+  if(!confirm('同じ原稿の一時保存データが見つかりました（'+when+'）。\n前回の作業内容（構図・メモ・スキップ・生成済みプロンプト）を復元しますか？'))return false;
+  scenes=draft.scenes;
+  active=Math.min(draft.active||0,scenes.length-1);
+  return true;
+}
 
 function getBlockRange(idx){
   var block=Math.floor(idx/10),bs=block*10,be=Math.min(bs+10,scenes.length);
@@ -131,8 +162,9 @@ function parsePlainScript(text){
   scenes=blocks.map(function(block,i){
     return{number:i+1,rawText:block,location:null,era:null,characters:null,memo:'',skipped:false,selection:null,analyzing:false,analyzed:false}
   });
-  active=0;syncUI();renderAll();
-  if(getApiKey())setTimeout(function(){for(var i=0;i<Math.min(3,scenes.length);i++)analyzeScene(i)},300);
+  var restored=tryRestoreDraft();
+  active=restored?active:0;syncUI();renderAll();
+  if(!restored&&getApiKey())setTimeout(function(){for(var i=0;i<Math.min(3,scenes.length);i++)analyzeScene(i)},300);
 }
 
 function parseSceneHeadings(text){
@@ -156,7 +188,7 @@ function parseSceneHeadings(text){
     return{number:mt.num,rawText:body||block,location:loc,era:era,characters:characters,memo:'',skipped:false,selection:null,analyzing:false,analyzed:true}
   });
   if(!parsed.length)return;
-  scenes=parsed;active=0;syncUI();renderAll();
+  scenes=parsed;active=tryRestoreDraft()?active:0;syncUI();renderAll();
 }
 
 function parseMdTable(text){
@@ -174,7 +206,7 @@ function parseMdTable(text){
     parsed.push({number:parseInt(num),rawText:rawText,location:loc,era:null,characters:typeof ch==='string'?ch.split(/[、,]/).map(function(s){return s.trim()}).filter(Boolean):[ch],memo:'',skipped:false,selection:null,analyzing:false,analyzed:true});
   }
   if(!parsed.length)return;
-  scenes=parsed;active=0;syncUI();renderAll();
+  scenes=parsed;active=tryRestoreDraft()?active:0;syncUI();renderAll();
 }
 
 async function analyzeScene(idx){
@@ -260,6 +292,7 @@ function commitScene(){
   scenes[active].memo=currentMemo;
   scenes[active].skipped=false;
   renderAll();
+  saveDraft();
 }
 
 function toggleSkip(){
@@ -267,11 +300,13 @@ function toggleSkip(){
   var s=scenes[active];
   if(s.skipped){s.skipped=false}else{s.skipped=true;s.selection=null}
   syncUI();renderAll();
+  saveDraft();
 }
 
 function resetAll(){
   scenes.forEach(function(s){s.selection=null;s.memo='';s.skipped=false});
   currentSel={};currentMemo='';renderAll();
+  saveDraft();
 }
 
 function sceneSummary(s){
@@ -329,7 +364,8 @@ function renderHeader(){
       '<a href="index.html" class="home-link">← HOME</a>'+
       '<h1 style="font:var(--type-display);color:var(--gold);margin:0">怪奇書籍館</h1>'+
       '<span class="label">Composition Builder</span>'+
-      '<div style="margin-left:auto">'+
+      '<div style="margin-left:auto;display:flex;align-items:center;gap:var(--space-sm)">'+
+        '<span class="label" id="draftStatus" style="color:var(--ink-dim)">'+(lastSavedAt?'一時保存 済 '+new Date(lastSavedAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}):'')+'</span>'+
         (scenes.length?'<button class="btn btn-danger" onclick="resetAll()">RESET ALL</button>':'')+
       '</div>'+
     '</header>'+
