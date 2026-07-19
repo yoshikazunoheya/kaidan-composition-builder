@@ -211,6 +211,7 @@ async function translateSceneToEnglish(s){
 
 async function generatePrompt(idx){
   if(!scenes[idx]||!scenes[idx].selection)return;
+  if(promptBlockers(scenes[idx]).length)return;
   if(!getApiKey()){alert('OpenAI APIキーを設定してください');return}
   scenes[idx].promptGenerating=true;
   if(active===idx)renderRight();
@@ -226,6 +227,18 @@ async function generatePrompt(idx){
   saveDraft();
 }
 
+function promptBlockers(s){
+  // 戻り値: 空配列なら生成OK。空でなければ理由の配列（disableの根拠）
+  var reasons=[];
+  if(!Object.keys(CHARACTERS).length){reasons.push('CHARACTERS未読み込み');return reasons}
+  var chars=Array.isArray(s.characters)?s.characters:[];
+  var named=chars.filter(function(n){return n&&n!=='—'});
+  if(named.length){
+    var bad=validateSceneCharacters(s).filter(function(v){return v.status!=='ok'});
+    if(bad.length)reasons.push('人物照合エラー: '+bad.map(function(v){return v.name}).join('・'));
+  }
+  return reasons;
+}
 function copyPrompt(idx){
   var s=scenes[idx];if(!s||!s.prompt)return;
   navigator.clipboard.writeText(s.prompt).then(function(){
@@ -234,15 +247,16 @@ function copyPrompt(idx){
   });
 }
 
-async function generateBlockPrompts(){
+async function generateBlockPrompts(force){
   if(!scenes.length||isGeneratingPrompts||!getApiKey())return;
   var r=getBlockRange(active);
   var targets=[];
   for(var i=r.start;i<r.end;i++){
     var s=scenes[i];
-    if(s.selection&&!s.skipped&&!s.prompt)targets.push(i);
+    if(s.selection&&!s.skipped&&(force||!s.prompt)&&!promptBlockers(s).length)targets.push(i);
   }
   if(!targets.length)return;
+  if(force&&!confirm('このブロック内の生成済みプロンプト('+targets.length+'件)を全て上書きして作り直します。よろしいですか？'))return;
   isGeneratingPrompts=true;renderAll();
   for(var j=0;j<targets.length;j++){
     await generatePrompt(targets[j]);
@@ -507,15 +521,20 @@ function renderProgress(){
   });
   for(var p=0;p<10-bsc.length;p++)cells+='<div style="width:20px;height:20px;border-radius:var(--radius-sm);border:1px dashed var(--border);opacity:.3"></div>';
   var hasNext=be<scenes.length;
-  var promptTargets=bsc.filter(function(s){return s.selection&&!s.skipped&&!s.prompt}).length;
+  var committed=bsc.filter(function(s){return s.selection&&!s.skipped});
+  var promptTargets=committed.filter(function(s){return !s.prompt&&!promptBlockers(s).length}).length;
+  var promptDoneCount=committed.filter(function(s){return s.prompt}).length;
+  var promptBlockedCount=committed.filter(function(s){return promptBlockers(s).length}).length;
   el.innerHTML=
     '<div style="padding:var(--space-md) var(--space-lg) 0">'+
       '<div class="panel" style="padding:var(--space-sm)">'+
         '<div style="display:flex;align-items:center;gap:var(--space-sm);flex-wrap:wrap">'+
           '<span class="label">BLOCK '+(block+1)+' &nbsp;·&nbsp; '+done+' / '+bsc.length+'</span>'+
           '<div style="display:flex;gap:4px">'+cells+'</div>'+
+          (promptBlockedCount?'<span class="label" style="color:var(--ink-dim)">⚠ 人物照合エラー '+promptBlockedCount+'件</span>':'')+
           '<div style="margin-left:auto;display:flex;gap:var(--space-xs)">'+
-            (promptTargets?'<button class="btn btn-secondary" style="padding:4px 10px" onclick="generateBlockPrompts()"'+(isGeneratingPrompts?' disabled':'')+'>'+(isGeneratingPrompts?'PROMPT生成中…':'このブロックをPROMPT一括生成 ('+promptTargets+')')+'</button>':'')+
+            (promptTargets?'<button class="btn btn-secondary" style="padding:4px 10px" onclick="generateBlockPrompts(false)"'+(isGeneratingPrompts?' disabled':'')+'>'+(isGeneratingPrompts?'PROMPT生成中…':'このブロックをPROMPT一括生成 ('+promptTargets+')')+'</button>':'')+
+            (promptDoneCount?'<button class="btn btn-secondary" style="padding:4px 10px" onclick="generateBlockPrompts(true)"'+(isGeneratingPrompts?' disabled':'')+'>ブロックを全て再生成 ('+promptDoneCount+')</button>':'')+
             (hasNext?'<button class="btn btn-secondary" style="padding:4px 10px" onclick="jumpNextBlock()">次の10カットへ ›</button>':'')+
           '</div>'+
         '</div>'+
@@ -624,7 +643,12 @@ function renderAxesInner(){
   html+='<div style="margin-top:var(--space-md)"><button class="btn btn-primary" onclick="commitScene()"'+(complete?'':' disabled')+'>'+(cur.selection?'UPDATE SCENE':'ADD SCENE')+'</button></div>';
   if(cur.selection){
     var pg=cur.promptGenerating;
-    html+='<div style="margin-top:var(--space-sm)"><button class="btn btn-secondary" onclick="generatePrompt('+active+')"'+(pg?' disabled':'')+'>'+(pg?'生成中…':(cur.prompt?'PROMPT 再生成':'PROMPT 生成'))+'</button></div>';
+    var blockers=promptBlockers(cur);
+    var disabled=pg||blockers.length;
+    html+='<div style="margin-top:var(--space-sm)">'+
+      '<button class="btn btn-secondary" onclick="generatePrompt('+active+')"'+(disabled?' disabled':'')+'>'+(pg?'生成中…':(cur.prompt?'PROMPT 再生成':'PROMPT 生成'))+'</button>'+
+      (blockers.length&&!pg?'<div style="margin-top:4px;font:var(--type-label);color:var(--ink-dim)">⚠ '+esc(blockers.join(' / '))+'</div>':'')+
+    '</div>';
   }
   return html;
 }
