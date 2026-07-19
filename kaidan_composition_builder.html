@@ -247,6 +247,24 @@ function copyPrompt(idx){
   });
 }
 
+async function generateAllPrompts(force){
+  if(!scenes.length||isGeneratingPrompts||!getApiKey())return;
+  var targets=[];
+  for(var i=0;i<scenes.length;i++){
+    var s=scenes[i];
+    if(s.selection&&!s.skipped&&(force||!s.prompt)&&!promptBlockers(s).length)targets.push(i);
+  }
+  if(!targets.length)return;
+  if(force&&!confirm('全シーン中、生成済みプロンプト('+targets.length+'件)を全て上書きして作り直します。よろしいですか？'))return;
+  isGeneratingPrompts=true;renderAll();
+  for(var j=0;j<targets.length;j++){
+    await generatePrompt(targets[j]);
+    renderProgress();renderOutput();renderLeft();
+    await new Promise(function(r2){setTimeout(r2,300)});
+  }
+  isGeneratingPrompts=false;renderAll();
+}
+
 async function generateBlockPrompts(force){
   if(!scenes.length||isGeneratingPrompts||!getApiKey())return;
   var r=getBlockRange(active);
@@ -583,6 +601,9 @@ function renderLeft(){
 
   // Characters bar
   var charCount=Object.keys(CHARACTERS).length;
+  var allCommitted=scenes.filter(function(s){return s.selection&&!s.skipped});
+  var allTargets=allCommitted.filter(function(s){return !s.prompt&&!promptBlockers(s).length}).length;
+  var allDone=allCommitted.filter(function(s){return s.prompt}).length;
   var charBar=
     '<div class="panel" style="display:flex;align-items:center;gap:var(--space-xs);flex-wrap:wrap">'+
       '<span class="label">CHARACTERS</span>'+
@@ -590,8 +611,10 @@ function renderLeft(){
         '<span class="label" style="color:var(--gold)">'+esc(charFileName)+' — '+charCount+'体</span>':
         '<span class="label" style="color:var(--ink-dim)">未読み込み — 時間軸/人物の照合ができません</span>'
       )+
-      '<div style="margin-left:auto">'+
+      '<div style="margin-left:auto;display:flex;gap:var(--space-xs)">'+
         '<button class="btn-analyze" onclick="document.getElementById(\'charFile\').click()">'+(charCount?'差し替え':'JSON読込')+'</button>'+
+        (allTargets?'<button class="btn-analyze" onclick="generateAllPrompts(false)"'+(isGeneratingPrompts?' disabled':'')+'>'+(isGeneratingPrompts?'生成中…':'全PROMPT生成 ('+allTargets+')')+'</button>':'')+
+        (allDone?'<button class="btn-analyze" onclick="generateAllPrompts(true)"'+(isGeneratingPrompts?' disabled':'')+'>全PROMPT再生成 ('+allDone+')</button>':'')+
       '</div>'+
     '</div>';
 
