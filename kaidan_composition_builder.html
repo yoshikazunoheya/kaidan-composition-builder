@@ -101,9 +101,17 @@ document.getElementById('charFile').addEventListener('change',function(e){
   reader.onload=function(ev){
     try{
       var parsed=JSON.parse(ev.target.result);
-      CHARACTERS=parsed.CHARACTERS||{};
+      var dict=parsed.CHARACTERS||parsed.characters;
+      if(!dict&&parsed&&typeof parsed==='object'){
+        var vals=Object.keys(parsed).map(function(k){return parsed[k]});
+        if(vals.length&&vals.every(function(v){return v&&typeof v==='object'&&(v.base||v.displayName||v.eras)}))dict=parsed;
+      }
+      CHARACTERS=dict||{};
       NEGATIVE_CHARACTER_COMMON=parsed.NEGATIVE_CHARACTER_COMMON||'';
       charFileName=file.name;
+      if(!Object.keys(CHARACTERS).length){
+        alert('JSONは読み込めましたが、人物データが見つかりませんでした。\n「CHARACTERS」キーの下にキャラクター辞書が入っている形式（または直下にキャラクター辞書がある形式）である必要があります。');
+      }
     }catch(err){
       alert('CHARACTERS JSONの読み込みに失敗しました: '+(err.message||err));
       return;
